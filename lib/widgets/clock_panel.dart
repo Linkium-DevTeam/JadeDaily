@@ -4,17 +4,19 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../models/daily_content.dart';
+import '../services/lunar_service.dart';
 import '../theme/jade_theme.dart';
 import '../utils/chinese_time.dart';
 import 'porcelain_panel.dart';
 
-/// 左下角玉牌：日期 + 时辰章 + 毛笔字时刻 + 壁纸故事。
+/// 左下角玉牌：日期 + 时辰章 + 农历干支 + 毛笔字时刻 + 壁纸故事 + 天气。
 class ClockPanel extends StatelessWidget {
   const ClockPanel({
     super.key,
     required this.clock,
     required this.wallpaper,
     required this.offline,
+    this.weatherLabel,
   });
 
   /// 时钟心跳（每秒更新）。
@@ -26,8 +28,12 @@ class ClockPanel extends StatelessWidget {
   /// 离线提示。
   final bool offline;
 
+  /// 天气一行文案（如「晴 · 12°」）；未启用为 null。
+  final String? weatherLabel;
+
   @override
   Widget build(BuildContext context) {
+    final palette = jadePalette(context);
     final screenWidth = MediaQuery.sizeOf(context).width;
     final bigFontSize = (screenWidth * 0.065).clamp(64.0, 104.0);
 
@@ -38,25 +44,39 @@ class ClockPanel extends StatelessWidget {
         children: [
           ValueListenableBuilder<DateTime>(
             valueListenable: clock,
-            builder: (context, now, _) => Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            builder: (context, now, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Flexible(
-                  child: Text(
-                    DateFormat('yyyy年MM月dd日 · EEEE', 'zh_CN').format(now),
-                    style: GoogleFonts.notoSerifSc(
-                      fontSize: 16,
-                      color: JadeColors.inkSoft,
-                      letterSpacing: 2,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        DateFormat('yyyy年MM月dd日 · EEEE', 'zh_CN').format(now),
+                        style: GoogleFonts.notoSerifSc(
+                          fontSize: 16,
+                          color: palette.inkSoft,
+                          letterSpacing: 2,
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 10),
+                    _seal(context, shichenText(now.hour)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  LunarService.infoFor(now).label,
+                  style: GoogleFonts.notoSerifSc(
+                    fontSize: 14,
+                    color: palette.inkFaint,
+                    letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(width: 10),
-                _seal(shichenText(now.hour)),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -70,7 +90,7 @@ class ClockPanel extends StatelessWidget {
                     hourText(now.hour),
                     style: GoogleFonts.maShanZheng(
                       fontSize: bigFontSize,
-                      color: JadeColors.ink,
+                      color: palette.ink,
                       height: 1.0,
                     ),
                   ),
@@ -80,7 +100,7 @@ class ClockPanel extends StatelessWidget {
                       '·',
                       style: TextStyle(
                         fontSize: 40,
-                        color: Colors.grey.withValues(alpha: 0.5),
+                        color: palette.inkSoft.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -88,7 +108,7 @@ class ClockPanel extends StatelessWidget {
                     minuteText(now.minute),
                     style: GoogleFonts.maShanZheng(
                       fontSize: bigFontSize,
-                      color: JadeColors.ink,
+                      color: palette.ink,
                       height: 1.0,
                     ),
                   ),
@@ -96,15 +116,15 @@ class ClockPanel extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          Divider(height: 1, color: Colors.grey.withValues(alpha: 0.3)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          Divider(height: 1, color: palette.inkFaint.withValues(alpha: 0.35)),
+          const SizedBox(height: 14),
           Text(
             (wallpaper?.title.isNotEmpty ?? false) ? wallpaper!.title : '凝脂画报',
             style: GoogleFonts.notoSerifSc(
               fontSize: 19,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF333333),
+              color: palette.textBody,
             ),
           ),
           const SizedBox(height: 6),
@@ -112,12 +132,31 @@ class ClockPanel extends StatelessWidget {
             _storyText(),
             style: GoogleFonts.notoSerifSc(
               fontSize: 14,
-              color: const Color(0xFF666666),
+              color: palette.inkFaint,
               height: 1.5,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          if (weatherLabel != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.device_thermostat,
+                    size: 15, color: palette.inkSoft),
+                const SizedBox(width: 6),
+                Text(
+                  weatherLabel!,
+                  style: GoogleFonts.notoSerifSc(
+                    fontSize: 13,
+                    color: palette.inkSoft,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -129,7 +168,7 @@ class ClockPanel extends StatelessWidget {
     return story;
   }
 
-  Widget _seal(String label) {
+  Widget _seal(BuildContext context, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(

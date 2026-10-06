@@ -24,12 +24,37 @@ void main() {
       expect(wp.imageUrl, 'https://example.com/a.jpg');
     });
 
-    test('字段缺失时兜底为空串', () {
-      final wp = DailyWallpaper.fromBingJson({});
-      expect(wp.imageUrl, 'https://www.bing.com');
-      expect(wp.title, '');
-      expect(wp.copyright, '');
-    });
+  test('字段缺失时兜底为空串', () {
+    final wp = DailyWallpaper.fromBingJson({});
+    expect(wp.imageUrl, 'https://www.bing.com');
+    expect(wp.title, '');
+    expect(wp.copyright, '');
+    expect(wp.date, isNull);
+  });
+
+  test('enddate 解析为日期，非法值安全为 null', () {
+    expect(
+      DailyWallpaper.fromBingJson({'url': '/a', 'enddate': '20261007'}).date,
+      DateTime(2026, 10, 7),
+    );
+    expect(
+      DailyWallpaper.fromBingJson({'url': '/a', 'enddate': 'bad'}).date,
+      isNull,
+    );
+  });
+
+  test('缩略图地址替换分辨率，无标记时原样返回', () {
+    expect(
+      DailyWallpaper.fromBingJson({
+        'url': '/th?id=OHR.A_1920x1080.jpg',
+      }).thumbnailUrl,
+      contains('_640x360'),
+    );
+    expect(
+      DailyWallpaper.fromBingJson({'url': 'https://x.com/a.jpg'}).thumbnailUrl,
+      'https://x.com/a.jpg',
+    );
+  });
   });
 
   group('DailyQuote.fallback', () {

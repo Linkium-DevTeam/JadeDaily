@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,10 +10,14 @@ import 'package:window_manager/window_manager.dart';
 import '../models/daily_content.dart';
 import '../services/bing_service.dart';
 import '../services/clock_service.dart';
+import '../services/muyu_service.dart';
 import '../services/quote_service.dart';
 import '../services/settings_service.dart';
 import '../services/wallpaper_cache.dart';
+import '../services/weather_service.dart';
 import '../widgets/clock_panel.dart';
+import '../widgets/gallery_page.dart';
+import '../widgets/muyu_dialog.dart';
 import '../widgets/poetry_scroll.dart';
 import '../widgets/settings_sheet.dart';
 import '../widgets/wallpaper_background.dart';
@@ -27,6 +32,8 @@ class HomeScreen extends StatefulWidget {
     this.bing,
     this.quotes,
     this.cache,
+    this.weather,
+    this.muyu,
   });
 
   final SettingsService settings;
@@ -36,6 +43,8 @@ class HomeScreen extends StatefulWidget {
   final BingService? bing;
   final QuoteService? quotes;
   final WallpaperCache? cache;
+  final WeatherService? weather;
+  final MuyuService? muyu;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -45,14 +54,19 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
   late final BingService _bing;
   late final QuoteService _quotes;
   late final WallpaperCache _cache;
+  late final WeatherService _weather;
+  late final MuyuService _muyu;
 
   DailyWallpaper? _wallpaper;
   DailyQuote _quote = const DailyQuote('正在研墨……', '');
   String? _wallpaperPath;
+  Weather? _weatherInfo;
   bool _loading = true;
   bool _offline = false;
   bool _fullscreen = false;
+  bool _weatherLoading = false;
   DateTime _fetchedDay = DateTime(0);
+  DateTime? _lastWeatherAt;
 
   @override
   void initState() {
@@ -60,6 +74,8 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
     _bing = widget.bing ?? BingService();
     _quotes = widget.quotes ?? QuoteService();
     _cache = widget.cache ?? WallpaperCache();
+    _weather = widget.weather ?? WeatherService();
+    _muyu = widget.muyu ?? MuyuService();
     widget.clock.addListener(_onTick);
     windowManager.addListener(this);
     _bootstrap();
@@ -92,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
 
     final results = await Future.wait<Object?>([
       _bing.fetchToday(),
-      _quotes.fetch(),
+      _quotes.fetch(category: widget.settings.quoteCategory),
     ]);
     final meta = results[0] as DailyWallpaper?;
     final quote = results[1] as DailyQuote?;
@@ -103,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
         try {
           path = (await _cache.save(today, bytes)).path;
         } catch (_) {
-          // 缓存写失败不致命，直接用内存字节也行——这里选择下次重下。
+          // 缓存写失败不致命，下次启动重下即可。
         }
       }
     }
@@ -121,12 +137,74 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
       _loading = false;
       _fetchedDay = today;
     });
+    unawaited(_fetchWeather());
   }
 
-  /// 跨日自动换景：心跳里发现日期变了就重新取景。
+  /// 心跳：跨日自动换景；天气每半小时刷新。
   void _onTick() {
     final now = widget.clock.now.value;
-    if (!_loading && !isSameDay(now, _fetchedDay)) _bootstrap();
+    if (!_loading && !isSameDay(now, _fetchedDay)) {
+      _bootstrap();
+      return;
+    }
+    final last = _lastWeatherAt;
+    if (!_weatherLoading &&
+        widget.settings.weatherCity.isNotEmpty &&
+        (last == null ||
+            now.difference(last) > const Duration(minutes: 30))) {
+      unawaited(_fetchWeather());
+    }
+  }
+
+  /// 设置里改了一言分类后立即重取。
+  Future<void> _refreshQuote() async {
+    final quote = await _quotes.fetch(category: widget.settings.quoteCategory);
+    if (!mounted || quote == null) return;
+    setState(() => _quote = quote);
+  }
+
+  Future<void> _fetchWeather() async {
+    final city = widget.settings.weatherCity;
+    if (city.isEmpty) {
+      if (_weatherInfo != null && mounted) {
+        setState(() => _weatherInfo = null);
+      }
+      return;
+    }
+    if (_weatherLoading) return;
+    _weatherLoading = true;
+    final info = await _weather.fetchCurrent(city);
+    _lastWeatherAt = DateTime.now();
+    _weatherLoading = false;
+    if (!mounted) return;
+    setState(() => _weatherInfo = info);
+  }
+
+  // ---- 回廊与木鱼 ----
+
+  Future<void> _openGallery() async {
+    final picked = await showGallery(context, _bing);
+    if (picked == null || !mounted) return;
+    final bytes = await _bing.downloadImage(picked.imageUrl);
+    if (bytes != null) {
+      try {
+        final file = await _cache.save(picked.date ?? DateTime.now(), bytes);
+        if (!mounted) return;
+        setState(() {
+          _wallpaper = picked;
+          _wallpaperPath = file.path;
+        });
+        _toast('已换上「${picked.title}」');
+        return;
+      } catch (_) {
+        // 落到下方失败提示。
+      }
+    }
+    _toast('这幅画一时取不下来');
+  }
+
+  Future<void> _openMuyu() async {
+    await showMuyuDialog(context, settings: widget.settings, muyu: _muyu);
   }
 
   // ---- 窗口行为 ----
@@ -214,7 +292,8 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                     left: 0,
                     right: 0,
                     height: 48,
-                    child: DragToMoveArea(child: ColoredBox(color: Colors.transparent)),
+                    child:
+                        DragToMoveArea(child: ColoredBox(color: Colors.transparent)),
                   ),
 
                   Positioned(
@@ -239,12 +318,14 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                             Align(
                               alignment: Alignment.bottomLeft,
                               child: ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 520),
+                                constraints:
+                                    const BoxConstraints(maxWidth: 520),
                                 child: DragToMoveArea(
                                   child: ClockPanel(
                                     clock: widget.clock.now,
                                     wallpaper: _wallpaper,
                                     offline: _offline,
+                                    weatherLabel: _weatherInfo?.label,
                                   ),
                                 ),
                               ),
@@ -284,13 +365,28 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
             icon: const Icon(Icons.refresh, color: Colors.black38),
           ),
           IconButton(
+            tooltip: '回廊 · 近七日',
+            onPressed: _openGallery,
+            icon: const Icon(Icons.photo_library_outlined, color: Colors.black38),
+          ),
+          IconButton(
+            tooltip: '木鱼 · 功德',
+            onPressed: _openMuyu,
+            icon: const Icon(Icons.temple_buddhist, color: Colors.black38),
+          ),
+          IconButton(
             tooltip: '珍藏壁纸',
             onPressed: _wallpaperPath == null ? null : _saveWallpaper,
             icon: const Icon(Icons.save_alt, color: Colors.black38),
           ),
           IconButton(
             tooltip: '雅设',
-            onPressed: () => showJadeSettings(context, widget.settings),
+            onPressed: () => showJadeSettings(
+              context,
+              widget.settings,
+              onWeatherCitySaved: () => unawaited(_fetchWeather()),
+              onQuoteCategoryChanged: () => unawaited(_refreshQuote()),
+            ),
             icon: const Icon(Icons.tune, color: Colors.black38),
           ),
         ],

@@ -11,26 +11,37 @@ class BingService {
 
   final http.Client _client;
 
-  static const _endpoint =
-      'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN';
-
-  /// 拉取今日壁纸元信息；网络或解析失败返回 null（不抛异常，由调用方兜底）。
+  /// 拉取最近 [count] 天的壁纸元信息（回廊用），按日期从新到旧。
   Future<DailyWallpaper?> fetchToday({
     Duration timeout = const Duration(seconds: 8),
   }) async {
+    final list = await fetchRecent(count: 1, timeout: timeout);
+    return list.isEmpty ? null : list.first;
+  }
+
+  /// 拉取最近 [count] 天的壁纸元信息（回廊用），按日期从新到旧。
+  Future<List<DailyWallpaper>> fetchRecent({
+    int count = 8,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
     try {
-      final res = await _client
-          .get(Uri.parse(_endpoint))
-          .timeout(timeout);
-      if (res.statusCode != 200) return null;
+      final uri = Uri.https('www.bing.com', '/HPImageArchive.aspx', {
+        'format': 'js',
+        'idx': '0',
+        'n': '$count',
+        'mkt': 'zh-CN',
+      });
+      final res = await _client.get(uri).timeout(timeout);
+      if (res.statusCode != 200) return const [];
       final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       final images = data['images'] as List<dynamic>?;
-      if (images == null || images.isEmpty) return null;
-      return DailyWallpaper.fromBingJson(
-        images.first as Map<String, dynamic>,
-      );
+      if (images == null) return const [];
+      return images
+          .whereType<Map<String, dynamic>>()
+          .map(DailyWallpaper.fromBingJson)
+          .toList();
     } catch (_) {
-      return null;
+      return const [];
     }
   }
 

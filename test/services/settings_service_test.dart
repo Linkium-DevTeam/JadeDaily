@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:poster/services/settings_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,5 +41,49 @@ void main() {
     settings.addListener(() => notified++);
     await settings.setShowPoetry(false);
     expect(notified, 1);
+  });
+
+  test('主题模式默认自动并按时解析昼夜', () async {
+    expect(settings.themeMode, JadeThemeMode.auto);
+    expect(
+      JadeThemeMode.auto.resolve(DateTime(2026, 10, 7, 10)),
+      ThemeMode.light,
+    );
+    expect(
+      JadeThemeMode.auto.resolve(DateTime(2026, 10, 7, 20)),
+      ThemeMode.dark,
+    );
+    expect(
+      JadeThemeMode.auto.resolve(DateTime(2026, 10, 7, 2)),
+      ThemeMode.dark,
+    );
+    // 显式日间不受时间影响
+    await settings.setThemeMode(JadeThemeMode.light);
+    expect(
+      settings.themeMode.resolve(DateTime(2026, 10, 7, 23)),
+      ThemeMode.light,
+    );
+  });
+
+  test('v1.3 新设置项持久化', () async {
+    await settings.setThemeMode(JadeThemeMode.dark);
+    await settings.addMerit();
+    await settings.addMerit();
+    await settings.setWeatherCity(' 杭州 ');
+    await settings.setQuoteCategory(JadeQuoteCategory.philosophy);
+    await settings.setLaunchAtStartup(true);
+
+    final restored = SettingsService(await SharedPreferences.getInstance());
+    expect(restored.themeMode, JadeThemeMode.dark);
+    expect(restored.muyuMerit, 2);
+    expect(restored.weatherCity, '杭州');
+    expect(restored.quoteCategoryEnum, JadeQuoteCategory.philosophy);
+    expect(restored.launchAtStartup, isTrue);
+  });
+
+  test('一言分类默认诗词，未知 code 回退', () {
+    expect(settings.quoteCategory, 'i');
+    expect(settings.quoteCategoryEnum, JadeQuoteCategory.poetry);
+    expect(JadeQuoteCategory.fromCode('不存在的'), JadeQuoteCategory.poetry);
   });
 }

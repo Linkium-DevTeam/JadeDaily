@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -15,10 +18,23 @@ Future<void> main() async {
   final settings = SettingsService(prefs);
   final clock = ClockService();
 
+  _setupLaunchAtStartup();
   await _initWindow(startFullscreen: settings.startFullscreen);
 
   runApp(JadeApp(settings: settings, clock: clock));
   clock.start();
+}
+
+/// 开机自启插件的元信息只需注册一次；启停切换在设置面板里完成。
+void _setupLaunchAtStartup() {
+  try {
+    LaunchAtStartup.instance.setup(
+      appName: 'JadeDaily',
+      appPath: Platform.resolvedExecutable,
+    );
+  } catch (_) {
+    // 平台不支持时忽略，设置项仍然可持久化。
+  }
 }
 
 Future<void> _initWindow({required bool startFullscreen}) async {

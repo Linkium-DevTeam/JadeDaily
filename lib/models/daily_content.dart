@@ -6,10 +6,14 @@ class DailyWallpaper {
   final String title;
   final String copyright;
 
+  /// 壁纸所属日期（来自 Bing 的 enddate，yyyyMMdd）。
+  final DateTime? date;
+
   const DailyWallpaper({
     required this.imageUrl,
     required this.title,
     required this.copyright,
+    this.date,
   });
 
   factory DailyWallpaper.fromBingJson(Map<String, dynamic> json) {
@@ -19,7 +23,24 @@ class DailyWallpaper {
       imageUrl: url,
       title: (json['title'] as String?) ?? '',
       copyright: (json['copyright'] as String?) ?? '',
+      date: _parseDate(json['enddate'] as String?),
     );
+  }
+
+  /// 低分辨率缩略图，供回廊九宫格使用；无分辨率标记时退回原图。
+  String get thumbnailUrl {
+    const marker = '_1920x1080';
+    if (!imageUrl.contains(marker)) return imageUrl;
+    return imageUrl.replaceFirst(marker, '_640x360');
+  }
+
+  static DateTime? _parseDate(String? raw) {
+    if (raw == null || raw.length != 8) return null;
+    final y = int.tryParse(raw.substring(0, 4));
+    final m = int.tryParse(raw.substring(4, 6));
+    final d = int.tryParse(raw.substring(6, 8));
+    if (y == null || m == null || d == null) return null;
+    return DateTime(y, m, d);
   }
 }
 

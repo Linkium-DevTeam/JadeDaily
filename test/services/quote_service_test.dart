@@ -29,6 +29,27 @@ void main() {
     expect(quote?.source, '佚名');
   });
 
+  test('分类参数写入请求，缺省时随机', () async {
+    Uri? captured;
+    final client = MockClient((request) async {
+      captured = request.url;
+      return http.Response.bytes(
+        utf8.encode(jsonEncode({'hitokoto': '静水流深', 'from': ''})),
+        200,
+      );
+    });
+    final service = QuoteService(client: client);
+
+    await service.fetch(category: 'k');
+    expect(captured!.queryParameters['c'], 'k');
+
+    await service.fetch(category: '');
+    expect(captured!.queryParameters.containsKey('c'), isFalse);
+
+    await service.fetch();
+    expect(captured!.queryParameters.containsKey('c'), isFalse);
+  });
+
   test('HTTP 500 返回 null 不抛异常', () async {
     final client = MockClient((request) async => http.Response('err', 500));
     expect(await QuoteService(client: client).fetch(), isNull);

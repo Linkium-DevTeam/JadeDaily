@@ -14,6 +14,7 @@ class PoetryScroll extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = jadePalette(context);
     final serif = GoogleFonts.notoSerifSc().fontFamily;
     return PorcelainPanel(
       vertical: true,
@@ -31,7 +32,7 @@ class PoetryScroll extends StatelessWidget {
                   VerticalText(
                     text: quote.source,
                     fontSize: 16,
-                    color: JadeColors.inkFaint,
+                    color: palette.inkFaint,
                     fontFamily: serif,
                   ),
                   const SizedBox(height: 24),
@@ -55,7 +56,7 @@ class PoetryScroll extends StatelessWidget {
             child: VerticalText(
               text: quote.text,
               fontSize: 34,
-              color: const Color(0xFF222222),
+              color: palette.textPoem,
               fontFamily: serif,
               letterSpacing: 10,
             ),

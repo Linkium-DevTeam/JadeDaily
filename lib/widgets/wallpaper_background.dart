@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/jade_theme.dart';
 
-/// 背景壁纸层：本地缓存图 + 瓷白雾化 + 淡入动画。
-/// 无图或加载失败时退到青瓷渐变底。
+/// 背景壁纸层：本地缓存图 + 瓷雾/墨色压暗 + 淡入动画。
+/// 无图或加载失败时退到随主题的渐变底。
 class WallpaperBackground extends StatelessWidget {
   const WallpaperBackground({
     super.key,
@@ -15,11 +15,12 @@ class WallpaperBackground extends StatelessWidget {
 
   final String? path;
 
-  /// 瓷白雾化浓度 0-0.6。
+  /// 雾化浓度 0-0.6。
   final double dim;
 
   @override
   Widget build(BuildContext context) {
+    final palette = jadePalette(context);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -29,28 +30,32 @@ class WallpaperBackground extends StatelessWidget {
                   File(path!),
                   fit: BoxFit.cover,
                   frameBuilder: _fadeIn,
-                  errorBuilder: (_, _, _) => _mist(),
+                  errorBuilder: (_, _, _) => _mist(palette),
                 )
-              : _mist(),
+              : _mist(palette),
         ),
         if (path != null)
           RepaintBoundary(
             child: ColoredBox(
-              color: JadeColors.porcelain.withValues(alpha: dim),
+              color: palette.overlay.withValues(alpha: dim),
             ),
           ),
       ],
     );
   }
 
-  /// 瓷雾渐变 + 一枚极淡的「简」字水印。
-  Widget _mist() {
+  /// 瓷雾/夜色渐变 + 一枚极淡的「简」字水印。
+  Widget _mist(JadePalette palette) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [JadeColors.mistTop, JadeColors.mistMiddle, JadeColors.mistBottom],
+          colors: [
+            palette.mistTop,
+            palette.mistMiddle,
+            palette.mistBottom,
+          ],
         ),
       ),
       child: Center(
@@ -59,7 +64,7 @@ class WallpaperBackground extends StatelessWidget {
           style: TextStyle(
             fontSize: 220,
             fontFamily: 'Microsoft YaHei',
-            color: JadeColors.ink.withValues(alpha: 0.045),
+            color: palette.ink.withValues(alpha: 0.045),
           ),
         ),
       ),

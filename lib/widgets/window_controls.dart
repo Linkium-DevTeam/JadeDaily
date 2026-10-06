@@ -28,6 +28,7 @@ class _WindowControlsState extends State<WindowControls> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = jadePalette(context);
     final faded = widget.fullscreen && !_hovering;
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
@@ -37,7 +38,7 @@ class _WindowControlsState extends State<WindowControls> {
         duration: const Duration(milliseconds: 300),
         child: Container(
           decoration: BoxDecoration(
-            color: JadeColors.panel.withValues(alpha: 0.75),
+            color: palette.panel.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -47,7 +48,7 @@ class _WindowControlsState extends State<WindowControls> {
                 tooltip: '最小化',
                 onPressed: windowManager.minimize,
                 icon: const Icon(Icons.remove, size: 20),
-                color: JadeColors.inkSoft,
+                color: palette.inkSoft,
               ),
               IconButton(
                 tooltip: widget.fullscreen ? '退出全屏' : '全屏壁纸',
@@ -56,13 +57,13 @@ class _WindowControlsState extends State<WindowControls> {
                   widget.fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
                   size: 20,
                 ),
-                color: JadeColors.inkSoft,
+                color: palette.inkSoft,
               ),
               IconButton(
                 tooltip: '关闭',
                 onPressed: windowManager.close,
                 icon: const Icon(Icons.close, size: 20),
-                color: JadeColors.inkSoft,
+                color: palette.inkSoft,
               ),
             ],
           ),
