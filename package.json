@@ -1,0 +1,16 @@
+{
+  "name": "jadedaily",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "简·画报 Jade Daily — New Chinese Style Zen Clock & Wallpaper (Tauri 2)",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "test": "node --test tests/",
+    "icon": "tauri icon assets/logo.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

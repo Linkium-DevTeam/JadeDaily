@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>简·画报 · Jade Daily</title>
+  <link rel="icon" href="./logo.png" />
+  <link rel="stylesheet" href="./css/jade.css" />
+</head>
+<body>
+  <img id="wallpaper" alt="" draggable="false" />
+  <div id="veil"></div>
+
+  <!-- 顶部隐形拖拽条（替代标题栏） -->
+  <div id="dragStrip" data-tauri-drag-region></div>
+
+  <header id="winControls">
+    <button id="btnMin" title="最小化" aria-label="最小化">&mdash;</button>
+    <button id="btnFull" title="全屏壁纸" aria-label="全屏壁纸">&#x26F6;</button>
+    <button id="btnClose" title="关闭" aria-label="关闭">&#x2715;</button>
+  </header>
+
+  <div id="loading">研墨中……</div>
+
+  <main id="ui" hidden>
+    <!-- 左下：时钟玉牌 -->
+    <section id="clockPanel" data-tauri-drag-region>
+      <div class="date-row">
+        <span id="dateText"></span>
+        <span class="seal" id="shichenSeal"></span>
+      </div>
+      <div class="lunar-row" id="lunarText"></div>
+      <div class="big-time">
+        <span id="hourText"></span><span class="dot">·</span><span id="minuteText"></span>
+      </div>
+      <hr />
+      <div class="story-title" id="wallTitle">凝脂画报</div>
+      <div class="story-sub" id="wallStory"></div>
+      <div class="weather-row" id="weatherRow" hidden>
+        <span class="weather-dot"></span><span id="weatherText"></span>
+      </div>
+    </section>
+
+    <!-- 右侧：诗词玉简 -->
+    <aside id="poetry">
+      <div class="poetry-author-col">
+        <div class="vertical poetry-author" id="quoteSource">佚名</div>
+        <div class="seal">雅趣</div>
+      </div>
+      <div class="vertical poetry-text" id="quoteText">正在研墨……</div>
+    </aside>
+
+    <!-- 右下：动作簇 -->
+    <nav id="actionCluster">
+      <button class="act" id="btnRefresh" title="换一景">换</button>
+      <button class="act" id="btnGallery" title="回廊 · 近七日">廊</button>
+      <button class="act" id="btnMuyu" title="木鱼 · 功德">鱼</button>
+      <button class="act" id="btnSave" title="珍藏壁纸">存</button>
+      <button class="act" id="btnSettings" title="雅设">设</button>
+    </nav>
+  </main>
+
+  <!-- 雅设 -->
+  <dialog id="settingsDialog">
+    <form method="dialog" class="panel settings-panel">
+      <h2>雅设</h2>
+      <div class="section">外观</div>
+      <div class="segmented" id="themeSeg">
+        <label><input type="radio" name="themeMode" value="light" /><span>日间</span></label>
+        <label><input type="radio" name="themeMode" value="dark" /><span>夜阑</span></label>
+        <label><input type="radio" name="themeMode" value="auto" /><span>自动</span></label>
+      </div>
+      <label class="field">
+        <span class="field-label">瓷雾浓度 <output id="dimVal">25%</output><small>让背景更朦胧温润</small></span>
+        <input type="range" id="dimRange" min="0" max="0.6" step="0.05" />
+      </label>
+      <label class="check">
+        <input type="checkbox" id="showPoetry" />
+        <span>诗词玉简<small>显示右侧竖排每日一句</small></span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="startFullscreen" />
+        <span>启动即入画<small>打开应用直接进入全屏壁纸模式</small></span>
+      </label>
+
+      <div class="section">日常</div>
+      <label class="field">
+        <span class="field-label">一言雅类<small>每日一句的出处偏好</small></span>
+        <select id="quoteCategory">
+          <option value="i">诗词</option>
+          <option value="c">文学</option>
+          <option value="k">哲学</option>
+          <option value="">随机</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">天气城市<small>回车保存 · 留空隐藏</small></span>
+        <input type="text" id="cityInput" placeholder="如：杭州" autocomplete="off" />
+      </label>
+      <label class="check">
+        <input type="checkbox" id="autostart" />
+        <span>开机自启<small>随系统启动，静候每日一景</small></span>
+      </label>
+
+      <footer>
+        <span>简·画报 v2.0.0 · Linkium 出品</span>
+        <button type="submit" class="ghost">合上</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- 回廊 -->
+  <dialog id="galleryDialog">
+    <div class="panel gallery-panel">
+      <h2>回廊 · 近七日</h2>
+      <div id="galleryGrid" class="gallery-grid"></div>
+      <footer><button class="ghost" id="galleryClose">合上</button></footer>
+    </div>
+  </dialog>
+
+  <!-- 木鱼 -->
+  <dialog id="muyuDialog">
+    <div class="panel muyu-panel">
+      <h2>木鱼 · 功德</h2>
+      <div class="merit" id="meritText">功德 0</div>
+      <div class="muyu-stage" id="muyuStage">
+        <button id="muyuPad" title="轻敲" aria-label="敲木鱼">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <ellipse cx="50" cy="56" rx="33" ry="25" />
+            <rect x="21" y="49" width="58" height="6" rx="3" />
+            <circle cx="67" cy="42" r="4" />
+          </svg>
+        </button>
+      </div>
+      <div class="muyu-hint">轻敲一声，心随声静</div>
+      <footer><button class="ghost" id="muyuClose">合上</button></footer>
+    </div>
+  </dialog>
+
+  <div id="toast" hidden></div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
